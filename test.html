@@ -1,0 +1,144 @@
+<html>
+  <head>
+    <title>TEST</title>
+    <link rel="stylesheet" href="css/test.css">
+  </head>
+  <body>
+    <div class="outside-frame">
+      <div class="inside-frame">
+        <img src="images/webcam-scanner_20160226150639.png" class="capture-image">
+        <canvas id="canvas-crop-line" class="canvas-crop-line" width="1280" height="720"></canvas>
+      </div>
+    </div>
+
+    <script>
+    var canvas=document.getElementById("canvas-crop-line");
+    var ctx=canvas.getContext("2d");
+    // vertexs
+    var vtxs=[
+        {x:0, y:0}, {x:1280, y:0}, {x:1280, y:720}, {x:0, y:720} 
+    ]; 
+    var gbSize=16; // grabable box size
+
+    //ctx.strokeStyle="rgba(211, 47, 47, 1)";
+    //ctx.fillStyle="rgba(211, 47, 47, 1)";
+    ctx.strokeStyle="rgba(255, 255, 255, 1)";
+    ctx.fillStyle="rgba(255, 255, 255, 1)";
+    ctx.setLineDash([10, 5]);
+    ctx.lineWidth=4;
+
+    drawCropArea();
+
+    function drawCropArea() {
+        // clear Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.beginPath();
+        ctx.moveTo(vtxs[0].x, vtxs[0].y);
+        ctx.lineTo(vtxs[1].x, vtxs[1].y);
+        ctx.lineTo(vtxs[2].x, vtxs[2].y);
+        ctx.lineTo(vtxs[3].x, vtxs[3].y);
+        ctx.closePath();
+        ctx.stroke();
+
+        // grabable vertex-box
+        ctx.fillRect(vtxs[0].x-gbSize/2, vtxs[0].y-gbSize/2, gbSize, gbSize);
+        ctx.fillRect(vtxs[1].x-gbSize/2, vtxs[1].y-gbSize/2, gbSize, gbSize);
+        ctx.fillRect(vtxs[2].x-gbSize/2, vtxs[2].y-gbSize/2, gbSize, gbSize);
+        ctx.fillRect(vtxs[3].x-gbSize/2, vtxs[3].y-gbSize/2, gbSize, gbSize);
+
+    }
+
+    // addEventLister for dragging vertex
+    var elem=document.getElementById("canvas-crop-line");
+    elem.addEventListener("mousedown", function(event){
+        this.vtxIdx=clickDot(event);
+        if(this.vtxIdx!==false) {
+            var addFunc=moveVertex.bind(this);
+            this.addEventListener("mousemove", addFunc, false);
+            this.addEventListener("mouseup", function(event){
+                this.removeEventListener("mousemove", addFunc, false);
+            }, false);
+        }
+
+        function clickDot(event) {
+            var rect = event.target.getBoundingClientRect();
+            var x=event.clientX-rect.left, y=event.clientY-rect.top;
+            var vtxIdx=false;
+
+            if((x>vtxs[0].x-gbSize/2 && x<vtxs[0].x+gbSize/2)
+               && (y>vtxs[0].y-gbSize/2 && y<vtxs[0].y+gbSize/2) ) {
+                // vertex 0 : Top-Left
+                vtxIdx=0;
+            } else 
+            if((x>vtxs[1].x-gbSize/2 && x<vtxs[1].x+gbSize/2)
+               && (y>vtxs[1].y-gbSize/2 && y<vtxs[1].y+gbSize/2) ) {
+                // vertex 1 : Top-Right
+                vtxIdx=1;
+            } else 
+            if((x>vtxs[2].x-gbSize/2 && x<vtxs[2].x+gbSize/2)
+               && (y>vtxs[2].y-gbSize/2 && y<vtxs[2].y+gbSize/2) ) {
+                // vertex 2 : Bottom-Right
+                vtxIdx=2;
+            } else 
+            if((x>vtxs[3].x-gbSize/2 && x<vtxs[3].x+gbSize/2)
+               && (y>vtxs[3].y-gbSize/2 && y<vtxs[3].y+gbSize/2) ) {
+                // vertex 3 : Bottom-Left
+                vtxIdx=3;
+            }
+            console.log("[Click] ", vtxIdx);
+            return vtxIdx;
+        }
+
+        function moveVertex(event) {
+            var rect = event.target.getBoundingClientRect();
+            var x=event.clientX-rect.left, y=event.clientY-rect.top;
+            var a, b, c;
+
+            switch(this.vtxIdx) {
+                case 0:
+                    a=vtxs[3]; c=vtxs[1];
+                    break;
+                case 1:
+                    a=vtxs[0]; c=vtxs[2];
+                    break;
+                case 2:
+                    a=vtxs[1]; c=vtxs[3];
+                    break;
+                case 3:
+                    a=vtxs[2]; c=vtxs[0];
+                    break;
+                default:
+                    return;
+                    break;
+            }
+            
+            if((calcDist(a, {x:x, y:y}, c))===true) {
+                vtxs[this.vtxIdx]={x:x, y:y};
+                drawCropArea();
+            }
+
+            function calcDist(a, b, c) {
+                // must check to keep all of vertex in convex
+                /*
+                var out=false;
+                var da=Math.sqrt((b.x-c.x)^2+(b.y-c.y)^2),
+                db=Math.sqrt((b.x-a.x)^2+(b.y-a.y)^2);
+                if(0<Math.abs(db-da)) {
+                    out=true;
+                }
+                return out;
+                 */
+                return true;
+            }
+
+
+        }
+    }, false);
+
+
+    
+
+    </script>
+  </body>
+</html>

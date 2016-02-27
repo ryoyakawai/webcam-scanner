@@ -1,0 +1,376 @@
+<!-- webcam-scanner.html (2015) -->
+<!--
+Copyright 2016 Ryoya Kawai. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<dom-module id="webcam-scanner">
+  <template>
+    <div id="control-area"></div>
+    <select id="camselector"></select>
+    <div id="camstream-area"></div>
+    <div id="camsnap-area">
+    <div class="outside-frame">
+      <div class="inside-frame">
+        <!--<img src="images/webcam-scanner_20160226150639.png" class="capture-image">-->
+        <canvas id="camsnap" width="1280" height="720"></canvas>
+        <canvas id="canvas-crop-line" class="canvas-crop-line" width="1280" height="720"></canvas>
+      </div>
+    </div>
+  </template>
+</dom-module>
+<script type="text/javascript">
+Polymer({
+    is: "webcam-scanner",
+    properties: {
+/*
+        canvasid: {
+            type: String,
+            value: null
+        }
+*/
+    },
+    ready: function() {
+        this.init();
+    },
+    attached: function() {
+    },
+    init: function(type) {
+        var dd=new Date();
+        console.log(this.getDateTime());
+
+        // see sizes:
+        // http://tools.ietf.org/html/draft-alvestrand-constraints-resolution-00#page-4
+
+        this.constraints={
+            audio: false, 
+            video: {
+                mandatory: { minWidth: 1280, minHeight: 720 }, 
+                optional: [ { sourceId: false } ] 
+            }
+        };
+
+        // vertex of crop frame
+        this.vtxs=[
+            {x:0, y:0}, {x:1280, y:0}, {x:1280, y:720}, {x:0, y:720} 
+        ];
+        // grabable box size in crop frame
+        this.gbSize=16;
+
+
+        // canvas-area
+/*
+        var canvas=document.createElement("canvas");
+        canvas.setAttribute("id", "camsnap");
+        canvas.setAttribute("width", window.innerWidth);
+        canvas.setAttribute("height", window.innerHeight);
+        document.getElementById("camsnap-area").appendChild(canvas);
+*/
+
+        // camstream-area
+        var video=document.createElement("video");
+        video.setAttribute("id", "camstream");
+        video.setAttribute("class", "camstream");
+        document.getElementById("camstream-area").appendChild(video);
+
+        // control-area
+        var button=document.createElement("button");
+        button.id="capture-image";
+        button.innerHTML="Capture";
+        document.getElementById("control-area").appendChild(button);
+
+        var button=document.createElement("button");
+        button.id="download-image";
+        button.innerHTML="Download";
+        document.getElementById("control-area").appendChild(button);
+
+
+        // start using Camera
+        this.camSelector=this.$["camselector"];
+
+        var self=this;
+        navigator.mediaDevices.enumerateDevices().then(function(devices){
+            self.addDevices2List.bind(self)(devices);
+        }).catch(function(err) {
+            console.log("[ERROR] " + err.name + ": " + err.message);
+        });
+
+        // addEventListener to select tag
+        document.getElementById("camselector").addEventListener("change", function(event){
+            idx=event.target.selectedIndex;
+
+            // update Camera from previous
+            this.startStream.bind(this)(event.target.options[idx].value);
+        }.bind(this), false);
+
+        // addEventListener to Capture button
+        document.getElementById("capture-image").addEventListener("mousedown", function(event){
+            this.stream2Canvas.bind(this)(event);
+        }.bind(this), false);
+
+        // addEventListener to Download button
+        document.getElementById("download-image").addEventListener("mousedown", function(event){
+            this.downloadImage();
+        }.bind(this), false);
+
+    },
+    startStream: function(streamingCamId) {
+        if(streamingCamId==="false") {
+            // stop Streaming
+            this.stopStream.bind(this)(this.constraints.video.optional[0].sourceId);
+            this.constraints.video.optional=[{"sourceId": false}];
+        } else {
+            this.constraints.video.optional=[{"sourceId": streamingCamId}];
+            var self=this;
+            navigator.mediaDevices.getUserMedia(this.constraints).then(
+                function(stream){
+                    successCallback.bind(self)(stream);
+                }
+            ).catch(errorCallback.bind(self));
+
+            function successCallback(stream) {
+                this.localStream=stream;
+                var video=document.getElementById("camstream");
+                video.src=window.URL.createObjectURL(this.localStream);
+                video.play();
+            }
+            function errorCallback(message) {
+                console.log("[ERROR] " + message);
+            }
+        }
+    },
+    stopStream: function(sourceId) {
+        // stop
+        var video=document.getElementById("camstream");
+        video.pause();
+        window.URL.revokeObjectURL(video.src);
+        video.src="";
+        var tracks=(this.localStream.getTracks());
+        for(idx in tracks) {
+            // ?? no way to stop specific(selected) stream??
+            tracks[idx].stop();
+        }
+        this.localStream=null;
+    },
+    addDevices2List: function(devices) {
+        this.devices=devices; 
+       var elem=document.getElementById("camselector");
+        if(elem.length==0) {
+            var option = document.createElement('option');
+            option.innerHTML="(Select WebCam)";
+            option.value="false";
+            elem.appendChild(option);
+        }
+        devices.forEach(function(device) {
+            if(device.kind==="videoinput") {
+                var option = document.createElement('option');
+                option.value=device.deviceId;
+                option.innerHTML=device.label;
+                elem.appendChild(option);
+            }
+        });
+    },
+    stream2Canvas: function(event) {
+        //var canvas=document.getElementById("camsnap");
+        var canvas=this.$["camsnap"];
+        var video=document.getElementById("camstream");
+        //var video=this.$["camstream"];
+        console.log(video);
+        canvas.width=video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+        this.initCropFrame.bind(this)();
+    },
+    initCropFrame: function() {
+        //var canvas=document.getElementById("canvas-crop-line");
+        var canvas=this.$["canvas-crop-line"];
+        var ctx=canvas.getContext("2d");
+
+        //ctx.strokeStyle="rgba(211, 47, 47, 1)";
+        //ctx.fillStyle="rgba(211, 47, 47, 1)";
+        ctx.strokeStyle="rgba(255, 255, 255, 1)";
+        ctx.fillStyle="rgba(255, 255, 255, 1)";
+        ctx.setLineDash([10, 5]);
+        ctx.lineWidth=4;
+
+        // drow frame
+        this.drowCropFrame.bind(this)();
+
+        // addEventLister for dragging vertex
+        //var elem=document.getElementById("canvas-crop-line");
+        var elem=this.$["canvas-crop-line"];
+        elem.addEventListener("mousedown", function(event){
+            this.selVtx=clickDot.bind(this)(event);
+            if(this.selVtx.status===true) {
+                var addFunc=moveVertex.bind(this);
+                this.addEventListener("mousemove", addFunc, false);
+                this.addEventListener("mouseup", function(event){
+                    document.body.style.cursor = "auto";
+                    this.selVtx={};
+                    this.removeEventListener("mousemove", addFunc, false);
+                }, false);
+            }
+
+            function clickDot(event) {
+                var rect = event.target.getBoundingClientRect();
+                var x=event.clientX-rect.left, y=event.clientY-rect.top;
+                var idx=false, cursor=false, gbs=this.gbSize;
+
+                if((x>this.vtxs[0].x-gbs/2 && x<this.vtxs[0].x+gbs/2)
+                   && (y>this.vtxs[0].y-gbs/2 && y<this.vtxs[0].y+gbs/2) ) {
+                    // vertex 0 : Top-Left
+                    idx=0;
+                    //cursor="nw-resize";
+                    cursor="nwse-resize";
+                } else 
+                if((x>this.vtxs[1].x-gbs/2 && x<this.vtxs[1].x+gbs/2)
+                   && (y>this.vtxs[1].y-gbs/2 && y<this.vtxs[1].y+gbs/2) ) {
+                    // vertex 1 : Top-Right
+                    idx=1;
+                    //cursor="ne-resize";
+                    cursor="nesw-resize";
+                } else 
+                if((x>this.vtxs[2].x-gbs/2 && x<this.vtxs[2].x+gbs/2)
+                   && (y>this.vtxs[2].y-gbs/2 && y<this.vtxs[2].y+gbs/2) ) {
+                    // vertex 2 : Bottom-Right
+                    idx=2;
+                    //cursor="se-resize";
+                    cursor="nwse-resize";
+                } else 
+                if((x>this.vtxs[3].x-gbs/2 && x<this.vtxs[3].x+gbs/2)
+                   && (y>this.vtxs[3].y-gbs/2 && y<this.vtxs[3].y+gbs/2) ) {
+                    // vertex 3 : Bottom-Left
+                    idx=3;
+                    //cursor="sw-resize";
+                    cursor="nesw-resize";
+                }
+                console.log("[Click] ", idx, cursor);
+                var out={
+                    status: (idx!==false? true : false),
+                    idx: idx,
+                    cursor: cursor
+                };
+                return out;
+            }
+
+            function moveVertex(event) {
+                var rect = event.target.getBoundingClientRect();
+                var x=event.clientX-rect.left, y=event.clientY-rect.top;
+                var a, b, c;
+
+                switch(this.selVtx.idx) {
+                    case 0:
+                        a=this.vtxs[3]; c=this.vtxs[1];
+                        break;
+                    case 1:
+                        a=this.vtxs[0]; c=this.vtxs[2];
+                        break;
+                    case 2:
+                        a=this.vtxs[1]; c=this.vtxs[3];
+                        break;
+                    case 3:
+                        a=this.vtxs[2]; c=this.vtxs[0];
+                        break;
+                    default:
+                        return;
+                        break;
+                }
+                
+                // update cursor
+                document.body.style.cursor=this.selVtx.cursor;
+
+                // update vertexs axis 
+                if((calcDist(a, {x:x, y:y}, c))===true) {
+                    this.vtxs[this.selVtx.idx]={x:x, y:y};
+                    this.drowCropFrame();
+                }
+
+                // TODO: need to add mode whole crop frame
+                
+                function calcDist(a, b, c) {
+                    // must check to keep all of vertex in convex
+                    /*
+                    var out=false;
+                    var da=Math.sqrt((b.x-c.x)^2+(b.y-c.y)^2),
+                    db=Math.sqrt((b.x-a.x)^2+(b.y-a.y)^2);
+                    if(0<Math.abs(db-da)) {
+                    out=true;
+                    }
+                    return out;
+                     */
+                    return true;
+                }
+
+
+            }
+        }.bind(this), false);
+
+    },
+    drowCropFrame: function(){
+        //var canvas=document.getElementById("canvas-crop-line");
+        var canvas=this.$["canvas-crop-line"]
+        var ctx=canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // draw crop frame
+        ctx.beginPath();
+        ctx.moveTo(this.vtxs[0].x, this.vtxs[0].y);
+        ctx.lineTo(this.vtxs[1].x, this.vtxs[1].y);
+        ctx.lineTo(this.vtxs[2].x, this.vtxs[2].y);
+        ctx.lineTo(this.vtxs[3].x, this.vtxs[3].y);
+        ctx.closePath();
+        ctx.stroke();
+
+        // draw grabable vertex-box
+        var gbs=this.gbSize;
+        ctx.fillRect(this.vtxs[0].x-gbs/2, this.vtxs[0].y-gbs/2, gbs, gbs);
+        ctx.fillRect(this.vtxs[1].x-gbs/2, this.vtxs[1].y-gbs/2, gbs, gbs);
+        ctx.fillRect(this.vtxs[2].x-gbs/2, this.vtxs[2].y-gbs/2, gbs, gbs);
+        ctx.fillRect(this.vtxs[3].x-gbs/2, this.vtxs[3].y-gbs/2, gbs, gbs);
+    },
+    downloadImage: function(){
+        var imgType="image/png";
+        // set filename to download attribute of A tag
+        var filename = "webcam-scanner_"+this.getDateTime();
+
+        var alink=document.createElement("a");
+        alink.download=filename;
+        alink.href=(document.getElementById("camsnap")).toDataURL(imgType);
+        //alink.href=(this.$["camsnap"]).toDataURL(imgType);
+        alink.click();
+
+    },
+    getDateTime: function() {
+        var dd=new Date();
+        function pad2(n) {  // always returns a string
+            return (n < 10 ? '0' : '') + n;
+        }
+        return dd.getFullYear() +
+            pad2(dd.getMonth() + 1) +
+            pad2(dd.getDate()) +
+            pad2(dd.getHours()) +
+            pad2(dd.getMinutes()) +
+            pad2(dd.getSeconds());
+    },
+    undesolved: function(type) {
+    },
+    delay: function(msec) {
+        var now=performance.now();
+        var expire=performance.now()+msec;
+        while(expire > now) {
+            now=performance.now();
+        }
+    }
+});
+</script>
+
