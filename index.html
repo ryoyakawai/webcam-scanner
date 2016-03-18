@@ -1,14 +1,111 @@
 <html>
   <head>
     <title>Webcam Scanner</title>
-    <script type="javascript" src="./js/configuration.js"></script>
   </head>
   <body>
     <link rel="import" href="./bower_components/polymer/polymer.html">    
     <link rel="import" href="./webcam-scanner.html">    
     <link rel="stylesheet" href="./css/main.css">
 
-    <webcam-scanner></webcam-scanner>
+
+    <link rel="import" href="./bower_components/iron-collapse/iron-collapse.html">
+    <link rel="import" href="./bower_components/iron-icons/iron-icons.html">
+    <link rel="import" href="./bower_components/iron-icons/communication-icons.html">
+    <link rel="import" href="./bower_components/iron-icons/hardware-icons.html">
+    <link rel="import" href="./bower_components/iron-icons/social-icons.html">
+    <link rel="import" href="./bower_components/iron-flex-layout/iron-flex-layout.html">
+    <link rel="import" href="./bower_components/paper-button/paper-button.html">
+    <link rel="import" href="./bower_components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="./bower_components/paper-styles/color.html">
+    <link rel="import" href="./bower_components/paper-styles/typography.html">
+    <link rel="import" href="./bower_components/paper-card/paper-card.html">
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons"rel="stylesheet">
+
+    <style is="custom-style" include="demo-pages-shared-styles">
+    paper-card {
+      width: 100%;
+    }
+    .horizontal {
+      @apply(--layout-horizontal);
+    }
+    .amber {
+      background: var(--paper-amber-900);
+    }
+    .lime {
+      background: var(--paper-lime-500);
+    }
+    .cyan {
+      background: var(--paper-cyan-500);
+    }
+    .dark {
+      background: var(--paper-blue-grey-500);
+    }
+    paper-card.dark, paper-card.amber, paper-card.lime, paper-card.cyan {
+      color: white;
+      --paper-card-header-color: white;
+    }
+    paper-checkbox {
+      display: block;
+      margin-bottom: 4px;
+      --paper-checkbox-label-color: white;
+      --paper-checkbox-unchecked-color: white;
+    }
+    paper-icon-button {
+      color: var(--paper-grey-600);
+    }
+    paper-icon-button.white {
+      color: white !important;
+    }
+    </style>
+
+    <div class="container">
+      <div class="card-frame">
+        <paper-card heading="Top western road trips" class="white">
+
+          <webcam-scanner id="wcs"></webcam-scanner>
+
+          <div id="result" class="hide"></div>
+          <div id="camsnap-area" class="hide">
+            <div class="outside-frame">
+              <div class="inside-frame">
+                <canvas id="camsnap" width="1280" height="720"></canvas>
+                <canvas id="canvas-crop-line" class="canvas-crop-line" width="1280" height="720"></canvas>
+              </div>
+            </div>
+          </div>
+          <div id="camstream-area">
+            <video id="camstream" class="camstream"></video>
+          </div>
+
+          <div class="card-content"></div>
+          <div class="card-actions">
+            <select id="camselector"></select>
+            <paper-button id="capture-image" disabled>Capture</paper-button>
+            <paper-button id="crop-translate" disabled>Crop&Translate</paper-button>
+            <paper-button id="download-image" disabled>Download</paper-button>
+            <i id="refresh" class="material-icons">refresh</i>
+
+            <paper-icon-button icon="hardware:keyboard-arrow-up" title="more info" onclick="_toggle()" style="float:right;">
+            </paper-icon-button>
+            <iron-collapse id="more-info" style="width:100%;">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent enim ante, tempus eget volutpat ac, cursus ac ante. Nulla facilisi. Praesent sed lacinia ligula. Donec malesuada nisl eget quam iaculis, vel placerat justo cursus.
+            </iron-collapse>
+            <script>
+            function _toggle() {
+                var moreInfo = document.getElementById('more-info');
+                var iconButton = Polymer.dom(event).localTarget;
+                iconButton.icon = moreInfo.opened ? 'hardware:keyboard-arrow-up'
+                                : 'hardware:keyboard-arrow-down';
+                moreInfo.toggle();
+            }
+            </script>
+          </div>
+        </paper-card>
+      </div>
+    </div>
+    <script type="text/javascript" src="./js/app.js"></script>
+
 
   </body>
 </html>

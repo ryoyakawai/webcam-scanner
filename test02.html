@@ -1,0 +1,253 @@
+<html>
+  <head>
+  </head>
+  <body>
+    <button id="transform" style="width:1280px;height:80px;font-size:30px;">Transform</button>
+    <div>
+      <canvas id="cimg" width="1280" height="720"></canvas>
+    </div>
+
+    <script>
+    var canvas=document.getElementById("cimg");
+    var ctx=canvas.getContext("2d");
+
+    var img=new Image();
+    img.src="images/test.png";
+    img.onload=function() {
+        if(typeof param!="undefined") {
+            console.log(param);
+            ctx.setTransform(param[0], param[1], param[2], param[3], param[4], param[5]);
+        }
+        if(typeof pos=="undefined") {
+            pos=[0, 0, 1280, 720];
+        }
+        ctx.drawImage(img, pos[0], pos[1], pos[2], pos[3] );
+        plotDots();
+    }
+    var vtxs=[
+        {x:586, y:122}, {x:922, y:168}, {x:876, y:676}, {x:494, y:606} 
+        //{x:264, y:96}, {x:830, y:78}, {x:800, y:650}, {x:408, y:664} 
+        //{x:412, y:264}, {x:699, y:275}, {x:654, y:673}, {x:245, y:647} 
+    ];
+
+    function plotDots() {
+        var radius=3
+        ctx.fillStyle="rgba(0, 0, 0, 1)";
+        for(var idx in vtxs) {
+            ctx.beginPath();
+            ctx.arc(vtxs[idx].x-radius/2, vtxs[idx].y-radius/2, radius, 2 * Math.PI, false);
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+
+
+    document.getElementById("transform").addEventListener("mousedown", function(event){
+        // clear
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // h:horizontal, v:vertical 
+        var params=[{x:null, y:null}, {x:null, y:null}, {x:null, y:null}, {x:null, y:null}];
+        var c={w:canvas.width, h:canvas.height};
+        params[0].x=vtxs[0].x-vtxs[3].x;
+        params[2].y=vtxs[1].y-vtxs[0].y;
+        
+        console.log(params[0].x/c.h, params[2].y/c.w);
+
+/*
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(vtxs[0].x, vtxs[0].y);
+        ctx.lineTo(vtxs[1].x, vtxs[1].y);
+        ctx.lineTo(vtxs[2].x, vtxs[2].y);
+        ctx.lineTo(vtxs[3].x, vtxs[3].y);
+        ctx.closePath();
+        ctx.clip();
+//        ctx.restore();
+*/
+
+        //ctx.setTransform(1, params.nw.h,  params.ne.v, 1, vtxs[0].x, vtxs[0].y);
+        //ctx.setTransform(1, params.ne.v, 3.3*params.nw.h, 1, 0, 0);
+
+
+
+        // horizontal direction
+        // always move [0]
+        var hD=1; // toLeft 
+        if((vtxs[0].x-vtxs[3].x)>0) {
+            hD=-1;
+        }
+        var vvtxs0x=vtxs[0].x;
+        // vertical direction
+        // always move [1]
+        var vD=1; // toDown 
+        if((vtxs[0].y-vtxs[1].y)>0) {
+            vD=-1;
+        }
+        var vvtxs1y=vtxs[1].y;
+        console.log("[hD, vD] ", hD, vD);
+        while(Math.abs(vvtxs0x-vtxs[3].x)>0
+              && Math.abs(vvtxs1y-vtxs[0].y)>0 ) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(vtxs[0].x, vtxs[0].y);
+                ctx.lineTo(vtxs[1].x, vtxs[1].y);
+                ctx.lineTo(vtxs[2].x, vtxs[2].y);
+                ctx.lineTo(vtxs[3].x, vtxs[3].y);
+                ctx.closePath();
+                ctx.clip();
+
+            if( Math.abs(vvtxs0x-vtxs[3].x)>0 ) {
+                vvtxs0x+=hD;
+                ctx.setTransform(1, vvtxs0x/c.w, 0, 1, vtxs[0].x, vtxs[0].y);
+                console.log("[x0] ", vvtxs0x, vtxs[3].x);
+            } 
+            if(Math.abs(vvtxs1y-vtxs[0].y)>0) {
+                vvtxs1y+=vD;
+                ctx.setTransform(1, 0, vvtxs1y/c.h, 1, 0, 0);
+                console.log("[y0] ", vtxs[0].y, vvtxs1y);
+            }
+        }
+        ctx.drawImage(img, pos[0], pos[1], pos[2], pos[3]);
+        ctx.restore();
+
+
+/*
+        // horizontal direction
+        // always move [2]
+        var hD=1; // toLeft 
+        if((vtxs[2].x-vtxs[1].x)>0) {
+            hD=-1;
+        }
+        var vvtxs2x=vtxs[2].x;
+        // vertical direction
+        // always move [1]
+        var vD=1; // toDown 
+        if((vtxs[2].y-vtxs[3].y)>0) {
+            vD=-1;
+        }
+        var vvtxs2y=vtxs[2].y;
+        while(Math.abs(vvtxs2x-vtxs[1].x)>0
+              && Math.abs(vvtxs2y-vtxs[3].y)>0 ) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(vtxs[1].x, vtxs[1].y);
+                ctx.lineTo(vtxs[3].x, vtxs[3].y);
+                ctx.lineTo(vtxs[2].x, vtxs[2].y);
+                ctx.closePath();
+                ctx.clip();
+
+            if( Math.abs(vvtxs2x-vtxs[1].x)>0 ) {
+                vvtxs2x+=hD;
+                ctx.setTransform(1, 0, 0, vvtxs2x/c.w, vtxs[3].x, vtxs[3].y);
+                console.log("[x1] ", vtxs[1].x,  vvtxs2x, vvtxs2x/c.w);
+            } 
+            if(Math.abs(vvtxs2y-vtxs[3].y)>0) {
+                vvtxs2y+=vD;
+                ctx.setTransform(1, 0, vvtxs2y/c.h, 1, vtxs[3].x, vtxs[3].y);
+                console.log("[y1] ", vtxs[3].y, vvtxs2y);
+            }
+        }
+        // clear
+        ctx.clearRect(0, 0, c.w, c.h);
+        ctx.drawImage(img, pos[0], pos[1], pos[2], -1*vtxs[3].y);
+        ctx.restore();
+*/
+
+////////////////
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(vtxs[1].x, vtxs[1].y);
+        ctx.lineTo(vtxs[3].x, vtxs[3].y);
+        ctx.lineTo(vtxs[2].x, vtxs[2].y);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.setTransform(1, 0/c.w, 0/c.h, 1, vtxs[3].x, vtxs[3].y);
+
+        // clear
+//        ctx.clearRect(0, 0, c.w, c.h);
+        ctx.drawImage(img, pos[0], pos[1], pos[2], -1*vtxs[3].y);
+        ctx.restore();
+
+/*
+*/
+
+
+
+
+
+/*
+        // vertical direction
+        // always move [1]
+        var vD=1; // toDown 
+        if((vtxs[1].y-vtxs[0].y)>0) {
+            vD=-1;
+        }
+        var vvtxs1y=vtxs[1].y;
+        while(Math.abs(vvtxs1y-vtxs[0].y)>0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(vtxs[0].x, vtxs[0].y);
+            ctx.lineTo(vtxs[1].x, vtxs[1].y);
+            ctx.lineTo(vtxs[2].x, vtxs[2].y);
+            ctx.lineTo(vtxs[3].x, vtxs[3].y);
+            ctx.closePath();
+            ctx.clip();
+            ctx.restore();
+
+            vvtxs1y+=vD;
+            ctx.setTransform(1, 0, vvtxs1y/c.h, 1, 0, 0);
+            
+            console.log("[y0] ", vtxs[0].y, vvtxs1y);
+        }
+
+        ctx.drawImage(img, pos[0], pos[1], pos[2], pos[3]);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(vtxs[1].x, vtxs[1].y);
+        ctx.lineTo(vtxs[2].x, vtxs[2].y);
+        ctx.lineTo(vtxs[3].x, vtxs[3].y);
+        ctx.closePath();
+        ctx.clip();
+
+        // clear
+        ctx.clearRect(0, 0, c.w, c.h);
+        ctx.setTransform(1, 0, 0, -1.2, vtxs[1].x, vtxs[1].y);
+        ctx.setTransform(1, 0, 0, -1.2, vtxs[3].x, vtxs[3].y);
+        ctx.drawImage(img, pos[0], pos[1], pos[2], -1*pos[3]);
+        ctx.restore();
+
+        ctx.setTransform(1, 0, 30.5, 1, vtxs[3].x, vtxs[3].y);
+        ctx.drawImage(img, pos[0], pos[1], pos[2], -1*pos[3]);
+        ctx.restore();
+*/
+
+
+
+
+        // horizontal direction @right-bottom
+        // always move [2]
+/*
+        var hD=1; // toLeft 
+        if((vtxs[2].x-vtxs[3].x)>0) {
+            hD=-1;
+        }
+        while(Math.abs(vtxs[2].x-vtxs[3].x)>0) {
+            vtxs[2].x+=hD;
+            console.log("[x1] ", vtxs[2].x, vtxs[3].x);
+        }        
+
+*/            
+
+        plotDots();
+
+    });
+
+
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,143 @@
+<html>
+  <head>
+  </head>
+  <body>
+    <button id="transform" style="width:1280px;height:80px;font-size:30px;">Transform</button>
+    <div>
+      <canvas id="cimg" width="1280" height="720"></canvas>
+    </div>
+
+    <script>
+    var canvas=document.getElementById("cimg");
+    var ctx=canvas.getContext("2d");
+
+    var img=new Image();
+    img.src="images/test.png";
+    img.onload=function() {
+        if(typeof param!="undefined") {
+            console.log(param);
+            ctx.setTransform(param[0], param[1], param[2], param[3], param[4], param[5]);
+        }
+        if(typeof pos=="undefined") {
+            pos=[0, 0, 1280, 720];
+        }
+        ctx.drawImage(img, pos[0], pos[1], pos[2], pos[3] );
+        plotDots(vtxs, 3, "rgba(0, 0, 0, 1)");
+    }
+    var vtxs=[
+        {x:586, y:122}, {x:922, y:168}, {x:876, y:676}, {x:494, y:606} 
+        //{x:264, y:96}, {x:830, y:78}, {x:800, y:650}, {x:408, y:664} 
+        //{x:412, y:264}, {x:699, y:275}, {x:654, y:673}, {x:245, y:647} 
+    ];
+    var cropRect=[{x:null, y:null}, {x:null, y:null}, {x:null, y:null}, {x:null, y:null}];
+
+    function plotDots(plot, radius, color) {
+        ctx.strokeStyle=color;
+        for(var idx in cropRect) {
+            ctx.beginPath();
+            ctx.rect(plot[idx].x-radius/2, plot[idx].y-radius/2, radius, radius);
+            ctx.stroke();
+            ctx.closePath();
+        }
+    }
+
+
+    document.getElementById("transform").addEventListener("mousedown", function(event){
+        // clear
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // h:horizontal, v:vertical 
+        var params=[{x:null, y:null}, {x:null, y:null}, {x:null, y:null}, {x:null, y:null}];
+        var c={w:canvas.width, h:canvas.height};
+        params[0].x=vtxs[0].x-vtxs[3].x;
+        params[2].y=vtxs[1].y-vtxs[0].y;
+        
+        console.log(params[0].x/c.h, params[2].y/c.w);
+
+
+        cropRect[0].x=cropRect[3].x=vtxs[3].x;
+        if(vtxs[0].x<vtxs[3].x) {
+            cropRect[0].x=cropRect[3].x=vtxs[0].x;
+        }
+        cropRect[0].y=cropRect[1].y=vtxs[0].y;
+        if(vtxs[0].y<vtxs[1].y) {
+            cropRect[0].y=cropRect[1].y=vtxs[0].y;
+        }
+        cropRect[1].x=cropRect[2].x=vtxs[1].x;
+        if(vtxs[2].x>vtxs[1].x) {
+            cropRect[1].x=cropRect[2].x=vtxs[2].x;
+        }
+        cropRect[2].y=cropRect[3].y=vtxs[2].y;
+        if(vtxs[2].y<vtxs[3].y) {
+            cropRect[2].y=cropRect[3].y=vtxs[3].y;
+        }
+
+        var trimSize={x:cropRect[1].x-cropRect[0].x, y:cropRect[2].y-cropRect[1].y};
+        ctx.clearRect(0, 0, c.w, c.h);
+        console.log("[x] ", (vtxs[0].x-cropRect[0].x)/trimSize.x, 2.8*Math.abs(vtxs[0].x-cropRect[0].x)/c.w);
+        console.log("[y] ", -1*Math.abs(vtxs[1].y-cropRect[0].y)/trimSize.y);
+
+        ctx.setTransform(1, -1*Math.abs(vtxs[1].y-cropRect[0].y)/trimSize.y, Math.abs(vtxs[0].x-cropRect[0].x)/trimSize.x, 1, 0, 0);
+        ctx.drawImage(
+            img, 
+            cropRect[0].x, cropRect[0].y, 
+            trimSize.x, trimSize.y,
+            0, 0,
+            trimSize.x, trimSize.y
+        );
+
+        // 傾いた画像の左上を揃える
+        var img2=new Image();
+        var imgType="image/png";
+        img2.src=(document.getElementById("cimg")).toDataURL(imgType);
+        ctx.clearRect(0, 0, c.w, c.h);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(img2, -1*Math.abs(vtxs[0].x-cropRect[0].x), 0, 1280, 720);
+
+
+        var radius=10;
+
+        var edge={
+            sw:{x:0, y:(cropRect[3].y-cropRect[0].y)-Math.abs(vtxs[3].y-cropRect[3].y)},
+            ne:{x:(cropRect[1].x-cropRect[0].x)-(vtxs[0].x-cropRect[0].x), y:0},
+        };
+        edge.se={x:edge.ne.x+Math.abs(cropRect[0].x-vtxs[0].x)-Math.abs(cropRect[2].x-vtxs[2].x), y:Math.abs(cropRect[2].y-cropRect[1].y)-Math.abs(cropRect[1].y-vtxs[1].y)}
+
+        ctx.strokeStyle="rgba(0, 255, 0, 1)";
+
+        ctx.beginPath();
+        ctx.rect(edge.ne.x, 0, radius, radius); 
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.rect(0, edge.sw.y, radius, radius);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.rect(edge.se.x, edge.se.y, radius, radius);
+        ctx.closePath();
+        ctx.stroke();
+
+
+        ctx.beginPath();
+        ctx.moveTo(edge.ne.x, edge.ne.y);
+        ctx.lineTo(edge.sw.x, edge.sw.y);
+        ctx.lineTo(edge.se.x, edge.se.y);
+        ctx.closePath();
+        ctx.clip();        
+
+        ctx.setTransform(1.3,0.1,-0.2,1,edge.sw.x, edge.sw.y);
+        ctx.drawImage(img, 0, 40);
+
+        plotDots(vtxs, 3, "rgba(0, 0, 0, 1)");
+        plotDots(cropRect, 8, "rgba(255, 0, 0, 1)");
+
+    });
+
+
+
+    </script>
+  </body>
+</html>
